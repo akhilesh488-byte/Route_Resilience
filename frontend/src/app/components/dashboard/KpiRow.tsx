@@ -1,51 +1,151 @@
 /**
  * KpiRow.tsx
  * ==========
- * Six top-line metric cards. Values come straight from
- * PipelineSummary.kpis (backend/app.py `_build_summary`). Renders sensible
- * placeholders before any run has completed.
+ * Professional six-card executive KPI summary row displaying critical topology
+ * metrics, efficiency scores, and resilience indices.
  */
 
-import { Network, Waypoints, Gauge, ShieldCheck, TrendingUp, Percent } from "lucide-react";
+import {
+  Waypoints,
+  GitFork,
+  TrendingUp,
+  ShieldCheck,
+  Zap,
+  Network,
+  ArrowUpRight,
+} from "lucide-react";
 import { usePipeline } from "../../state/PipelineContext";
 
 interface KpiCardProps {
   icon: React.ElementType;
   label: string;
   value: string;
-  accent: string;
-  sub?: string;
+  sub: string;
+  accentBg: string;
+  accentText: string;
+  badge?: string;
+  badgeType?: "positive" | "neutral" | "warning";
 }
 
-function KpiCard({ icon: Icon, label, value, accent, sub }: KpiCardProps) {
+function KpiCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  accentBg,
+  accentText,
+  badge,
+  badgeType = "neutral",
+}: KpiCardProps) {
   return (
-    <div className="bg-white flex flex-col gap-2 p-4 rounded-xl border border-[#e2e8f0] min-w-0">
-      <div className="flex items-start justify-between gap-1">
-        <p className="text-[10.5px] font-semibold text-[#94a3b8] uppercase tracking-wide leading-tight">{label}</p>
-        <Icon size={16} style={{ color: accent }} className="shrink-0 mt-0.5" />
+    <div className="bg-white flex flex-col justify-between p-4 rounded-2xl border border-slate-200 shadow-xs hover:shadow-sm transition-shadow min-w-0">
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider leading-tight">
+          {label}
+        </span>
+        <div className={`p-2 rounded-xl ${accentBg} ${accentText} shrink-0`}>
+          <Icon size={16} strokeWidth={2.2} />
+        </div>
       </div>
-      <p className="font-mono font-bold text-[22px] text-[#0f172a]">{value}</p>
-      {sub && <p className="text-[10px] text-[#94a3b8] truncate">{sub}</p>}
+
+      <div className="flex flex-col gap-1 mt-2">
+        <div className="flex items-baseline gap-2">
+          <span className="font-mono font-extrabold text-[22px] text-slate-900 tracking-tight">
+            {value}
+          </span>
+          {badge && (
+            <span
+              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 ${
+                badgeType === "positive"
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : badgeType === "warning"
+                  ? "bg-amber-50 text-amber-700 border border-amber-200"
+                  : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              {badge}
+            </span>
+          )}
+        </div>
+        <p className="text-[11.5px] text-slate-500 font-medium truncate">{sub}</p>
+      </div>
     </div>
   );
 }
 
-const fmtPct = (v: number | undefined | null) => (v === undefined || v === null ? "—" : `${v.toFixed(1)}%`);
-const fmtNum = (v: number | undefined | null) => (v === undefined || v === null ? "—" : v.toLocaleString());
-const fmt3 = (v: number | undefined | null) => (v === undefined || v === null ? "—" : v.toFixed(3));
+const fmtPct = (v: number | undefined | null) =>
+  v === undefined || v === null ? "—" : `+${v.toFixed(1)}%`;
+const fmtNum = (v: number | undefined | null) =>
+  v === undefined || v === null ? "—" : v.toLocaleString();
+const fmt3 = (v: number | undefined | null) =>
+  v === undefined || v === null ? "—" : v.toFixed(3);
 
 export function KpiRow() {
   const { result } = usePipeline();
   const k = result?.summary.kpis;
+  const addedEdges = result?.summary.healed_edges_added;
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 w-full">
-      <KpiCard icon={Waypoints} label="Total Nodes" value={fmtNum(k?.total_nodes)} accent="#3b82f6" sub="Intersections & endpoints" />
-      <KpiCard icon={Network} label="Total Edges" value={fmtNum(k?.total_edges)} accent="#8b5cf6" sub="Healed road segments" />
-      <KpiCard icon={Percent} label="Connectivity Gain" value={fmtPct(k?.connectivity_ratio_pct)} accent="#10b981" sub="After MST healing" />
-      <KpiCard icon={Gauge} label="Global Efficiency" value={fmt3(k?.global_efficiency)} accent="#f59e0b" sub="E(G), 0–1 scale" />
-      <KpiCard icon={ShieldCheck} label="Resilience Index" value={fmt3(k?.resilience_index)} accent="#0d9488" sub="AUC of GCC curve" />
-      <KpiCard icon={TrendingUp} label="Peak Betweenness" value={fmt3(k?.max_betweenness_centrality)} accent="#ef4444" sub="Top gatekeeper node" />
+    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3.5 w-full">
+      <KpiCard
+        icon={Waypoints}
+        label="Network Nodes"
+        value={fmtNum(k?.total_nodes)}
+        sub="Intersections & dead-ends"
+        accentBg="bg-slate-100"
+        accentText="text-slate-700"
+      />
+
+      <KpiCard
+        icon={Network}
+        label="Road Segments"
+        value={fmtNum(k?.total_edges)}
+        sub={addedEdges ? `${addedEdges} healed bridges` : "Routable connections"}
+        accentBg="bg-teal-50"
+        accentText="text-teal-700"
+        badge={addedEdges ? `+${addedEdges} links` : undefined}
+        badgeType="positive"
+      />
+
+      <KpiCard
+        icon={TrendingUp}
+        label="Connectivity Gain"
+        value={fmtPct(k?.connectivity_ratio_pct)}
+        sub="Largest Connected Component"
+        accentBg="bg-emerald-50"
+        accentText="text-emerald-700"
+        badge={k?.connectivity_ratio_pct ? "MST Healed" : undefined}
+        badgeType="positive"
+      />
+
+      <KpiCard
+        icon={Zap}
+        label="Global Efficiency"
+        value={fmt3(k?.global_efficiency)}
+        sub="Harmonic path length E(G)"
+        accentBg="bg-amber-50"
+        accentText="text-amber-700"
+      />
+
+      <KpiCard
+        icon={ShieldCheck}
+        label="Resilience Index"
+        value={fmt3(k?.resilience_index)}
+        sub="AUC under targeted attack"
+        accentBg="bg-emerald-50"
+        accentText="text-emerald-700"
+        badge={k?.resilience_index ? (k.resilience_index > 0.4 ? "High" : "Fragile") : undefined}
+        badgeType={k?.resilience_index && k.resilience_index > 0.4 ? "positive" : "warning"}
+      />
+
+      <KpiCard
+        icon={GitFork}
+        label="Peak Centrality"
+        value={fmt3(k?.max_betweenness_centrality)}
+        sub="Max gatekeeper stress score"
+        accentBg="bg-rose-50"
+        accentText="text-rose-700"
+      />
     </div>
   );
 }

@@ -1,3 +1,9 @@
+/**
+ * App.tsx
+ * =======
+ * Main application shell for the Occlusion-Robust Road Extraction & Criticality Platform.
+ */
+
 import { useRef } from "react";
 import { PipelineProvider } from "./state/PipelineContext";
 import { Sidebar } from "./components/dashboard/Sidebar";
@@ -25,23 +31,32 @@ function DashboardShell() {
   const headerRef = useRef<TopHeaderHandle>(null);
 
   return (
-    <div className="w-screen h-screen overflow-hidden flex bg-[#f8fafc]">
+    <div className="w-screen h-screen overflow-hidden flex bg-slate-100/80 font-sans antialiased text-slate-800">
       <HealthPoller />
       <Sidebar onUploadClick={() => headerRef.current?.openUploadDialog()} />
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="flex flex-col gap-5 p-6 max-w-[1400px] mx-auto">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="flex flex-col gap-4.5 p-6 max-w-[1560px] mx-auto min-h-full">
+          {/* Header */}
           <TopHeader ref={headerRef} />
+
+          {/* Key Metrics Row */}
           <KpiRow />
+
+          {/* 5-Stage Visual Stepper */}
           <PipelineStages />
-          <div className="flex gap-5 flex-wrap">
+
+          {/* Bottom Analytics Grid (Resilience Curve + Gatekeepers + What-If Simulator) */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4.5 items-stretch">
             <ResilienceChart />
             <GatekeeperTable />
             <WhatIfPanel />
           </div>
+
+          {/* Executive Summary & Export Strip */}
           <BottomSummaryBar />
         </div>
-      </div>
+      </main>
     </div>
   );
 }

@@ -1,28 +1,25 @@
 /**
  * GraphView.tsx
  * =============
- * Renders a GraphData payload (nodes with pixel coords + edges, optionally
- * flagged 'healed') as an SVG. Used for the Raw Topology / Healed Graph
- * pipeline panels and the What-If before/after mini-graphs.
- *
- * The viewBox matches the source image's pixel dimensions 1:1, so node
- * positions from the backend need zero client-side transformation.
+ * High-precision SVG road topology visualizer.
+ * Renders nodes (intersections) and edges (road segments & healed links)
+ * directly aligned to the source satellite/mask pixel coordinate frame.
  */
 
 import type { GraphData } from "../../lib/api";
 
 interface GraphViewProps {
   graph: GraphData;
-  width: number;   // source image width in px (viewBox size)
-  height: number;  // source image height in px (viewBox size)
+  width: number;
+  height: number;
   edgeColor?: string;
   healedEdgeColor?: string;
   nodeColor?: string;
   highlightNodeIds?: string[];
   highlightColor?: string;
-  removedNodeId?: string; // draws this node as a red "X" instead of a dot
+  removedNodeId?: string;
   backgroundImageUrl?: string;
-  dim?: boolean; // slightly fade the background image (matches original overlay style)
+  dim?: boolean;
 }
 
 export function GraphView({
@@ -30,10 +27,10 @@ export function GraphView({
   width,
   height,
   edgeColor = "#475569",
-  healedEdgeColor = "#22D3EE",
-  nodeColor = "#EF4444",
+  healedEdgeColor = "#10b981",
+  nodeColor = "#0f172a",
   highlightNodeIds = [],
-  highlightColor = "#F59E0B",
+  highlightColor = "#f59e0b",
   removedNodeId,
   backgroundImageUrl,
   dim = true,
@@ -41,67 +38,157 @@ export function GraphView({
   const highlightSet = new Set(highlightNodeIds);
   const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
 
-  // Node radius scales with image size (so dots aren't microscopic on a
-  // 1024px tile) and gently with degree so junctions read as "bigger" than
-  // plain pass-through points, echoing the original mock's styling.
-  const scale = Math.max(width, height) / 300; // "300px" is the reference design size
-  const radiusFor = (degree: number) => (2 + Math.min(degree, 5) * 0.7) * scale;
+  // Visual scaling relative to image dimension
+  const scale = Math.max(width, height) / 320;
+  const radiusFor = (degree: number) => Math.max(1.8, (2 + Math.min(degree, 4) * 0.8) * scale);
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%" }}>
-      {backgroundImageUrl && (
+    <div className="relative w-full h-full overflow-hidden bg-slate-950 flex items-center justify-center select-none">
+      {/* Background satellite / mask overlay */}
+      {backgroundImageUrl ? (
         <>
           <img
             src={backgroundImageUrl}
-            alt=""
-            style={{
-              position: "absolute", inset: 0, width: "100%", height: "100%",
-              objectFit: "cover", opacity: dim ? 0.55 : 1,
-            }}
+            alt="Source tile"
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ opacity: dim ? 0.45 : 1 }}
           />
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.25)" }} />
+          <div className="absolute inset-0 bg-slate-950/40" />
         </>
+      ) : (
+        /* Subtle architectural grid pattern */
+        <div
+          className="absolute inset-0 opacity-20"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)",
+            backgroundSize: "16px 16px",
+          }}
+        />
       )}
+
+      {/* Vector Graph SVG */}
       <svg
         viewBox={`0 0 ${Math.max(width, 1)} ${Math.max(height, 1)}`}
         preserveAspectRatio="xMidYMid meet"
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+        className="absolute inset-0 w-full h-full"
       >
-        {graph.edges.map((e, i) => {
-          const source = nodeById.get(e.source);
-          const target = nodeById.get(e.target);
-          if (!source || !target) return null;
-          return (
-            <line
-              key={`e-${i}`}
-              x1={source.x} y1={source.y} x2={target.x} y2={target.y}
-              stroke={e.healed ? healedEdgeColor : edgeColor}
-              strokeWidth={e.healed ? scale * 1.8 : scale * 0.9}
-              strokeLinecap="round"
-              opacity={e.healed ? 0.95 : 0.85}
-            />
-          );
-        })}
+        <defs>
+          <filter id="glow-healed" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+
+        {/* Regular Edges */}
+        {graph.edges
+          .filter((e) => !e.healed)
+          .map((e, i) => {
+            const source = nodeById.get(e.source);
+            const target = nodeById.get(e.target);
+            if (!source || !target) return null;
+            return (
+              <line
+                key={`e-reg-${i}`}
+                x1={source.x}
+                y1={source.y}
+                x2={target.x}
+                y2={target.y}
+                stroke={edgeColor}
+                strokeWidth={Math.max(1, scale * 1.2)}
+                strokeLinecap="round"
+                opacity={0.85}
+              />
+            );
+          })}
+
+        {/* Healed Bridging Edges (Emerald Highlighted) */}
+        {graph.edges
+          .filter((e) => e.healed)
+          .map((e, i) => {
+            const source = nodeById.get(e.source);
+            const target = nodeById.get(e.target);
+            if (!source || !target) return null;
+            return (
+              <g key={`e-healed-${i}`}>
+                <line
+                  x1={source.x}
+                  y1={source.y}
+                  x2={target.x}
+                  y2={target.y}
+                  stroke={healedEdgeColor}
+                  strokeWidth={Math.max(2, scale * 2.4)}
+                  strokeLinecap="round"
+                  strokeDasharray="4 2"
+                  filter="url(#glow-healed)"
+                  opacity={0.95}
+                />
+              </g>
+            );
+          })}
+
+        {/* Nodes */}
         {graph.nodes.map((n) => {
           const isRemoved = removedNodeId === n.id;
           const isHighlighted = highlightSet.has(n.id);
+
           if (isRemoved) {
-            const r = scale * 6;
+            const r = scale * 5.5;
             return (
-              <g key={`n-${n.id}`}>
-                <line x1={n.x - r} y1={n.y - r} x2={n.x + r} y2={n.y + r} stroke="#EF4444" strokeWidth={r * 0.35} strokeLinecap="round" />
-                <line x1={n.x - r} y1={n.y + r} x2={n.x + r} y2={n.y - r} stroke="#EF4444" strokeWidth={r * 0.35} strokeLinecap="round" />
+              <g key={`n-del-${n.id}`}>
+                {/* Red warning pulse circle */}
+                <circle
+                  cx={n.x}
+                  cy={n.y}
+                  r={r * 1.5}
+                  fill="#dc2626"
+                  opacity={0.3}
+                />
+                {/* Red X */}
+                <line
+                  x1={n.x - r}
+                  y1={n.y - r}
+                  x2={n.x + r}
+                  y2={n.y + r}
+                  stroke="#ef4444"
+                  strokeWidth={r * 0.4}
+                  strokeLinecap="round"
+                />
+                <line
+                  x1={n.x - r}
+                  y1={n.y + r}
+                  x2={n.x + r}
+                  y2={n.y - r}
+                  stroke="#ef4444"
+                  strokeWidth={r * 0.4}
+                  strokeLinecap="round"
+                />
               </g>
             );
           }
+
+          const radius = radiusFor(n.degree);
           return (
-            <circle
-              key={`n-${n.id}`}
-              cx={n.x} cy={n.y}
-              r={radiusFor(n.degree)}
-              fill={isHighlighted ? highlightColor : nodeColor}
-              opacity={isHighlighted ? 1 : 0.85}
-            />
+            <g key={`n-${n.id}`}>
+              {isHighlighted && (
+                <circle
+                  cx={n.x}
+                  cy={n.y}
+                  r={radius * 1.8}
+                  fill={highlightColor}
+                  opacity={0.35}
+                />
+              )}
+              <circle
+                cx={n.x}
+                cy={n.y}
+                r={radius}
+                fill={isHighlighted ? highlightColor : nodeColor}
+                stroke="#ffffff"
+                strokeWidth={Math.max(0.6, scale * 0.6)}
+                opacity={isHighlighted ? 1 : 0.9}
+              />
+            </g>
           );
         })}
       </svg>
