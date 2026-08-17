@@ -1,13 +1,16 @@
 /**
  * PipelineStages.tsx
  * ===================
- * Five-panel visual pipeline progress stepper showing intermediate artifacts
- * at each stage of the AI & Graph-Theoretic pipeline.
+ * Interactive 5-stage sequential algorithmic flow stepper.
+ * Displays each phase of the remote sensing and graph resilience pipeline
+ * connected with prominent flow-direction badges, process transformation tags,
+ * and high-resolution visual artifact containers.
  */
 
 import { useState } from "react";
 import {
-  ChevronRight,
+  ArrowRight,
+  ArrowDown,
   Maximize2,
   X,
   Layers,
@@ -17,6 +20,7 @@ import {
   TrendingUp,
   ImageOff,
   CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 import { usePipeline } from "../../state/PipelineContext";
 import { fileUrl } from "../../lib/api";
@@ -24,10 +28,11 @@ import { GraphView } from "./GraphView";
 
 interface StageCardProps {
   number: string;
+  stepName: string;
   title: string;
   subtitle: string;
   metric?: string;
-  icon: React.ElementType;
+  accentColor: string;
   isCompleted: boolean;
   children: React.ReactNode;
   onExpand?: () => void;
@@ -35,29 +40,35 @@ interface StageCardProps {
 
 function StageCard({
   number,
+  stepName,
   title,
   subtitle,
   metric,
-  icon: Icon,
+  accentColor,
   isCompleted,
   children,
   onExpand,
 }: StageCardProps) {
   return (
-    <div className="bg-white flex-1 flex flex-col rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-all min-w-[200px] group">
+    <div className="bg-white flex-1 flex flex-col rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-all min-w-[190px] relative group">
+      {/* Top Accent Strip */}
+      <div className={`h-1 w-full ${accentColor}`} />
+
       {/* Top Header */}
-      <div className="flex items-center justify-between px-3.5 py-2.5 bg-slate-50/80 border-b border-slate-100">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
-            {number}
+      <div className="flex items-center justify-between px-3.5 py-2.5 bg-slate-50/70 border-b border-slate-100">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="font-mono text-[9.5px] font-extrabold px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700 tracking-tight shrink-0">
+            {stepName}
           </span>
-          <span className="font-semibold text-[12px] text-slate-800 truncate">{title}</span>
+          <span className="font-bold text-[12px] text-slate-800 truncate" title={title}>
+            {title}
+          </span>
         </div>
         {onExpand && (
           <button
             onClick={onExpand}
-            className="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-200/60 transition-colors"
-            title="Expand artifact"
+            className="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-200/60 transition-colors shrink-0"
+            title="Expand artifact in full view"
           >
             <Maximize2 size={12} />
           </button>
@@ -96,43 +107,155 @@ function EmptyStatePlaceholder({ label }: { label: string }) {
   );
 }
 
-function StageConnector() {
+interface ConnectorProps {
+  label: string;
+  isCompleted: boolean;
+  isActive: boolean;
+}
+
+function FlowConnector({ label, isCompleted, isActive }: ConnectorProps) {
   return (
-    <div className="hidden 2xl:flex items-center justify-center shrink-0 px-1">
-      <ChevronRight size={18} className="text-slate-300" />
+    <div className="flex md:flex-col lg:flex-row items-center justify-center shrink-0 self-center px-1 py-1 z-10">
+      {/* Desktop / Tablet Horizontal Connector */}
+      <div className="hidden lg:flex items-center">
+        {/* Left Track Line */}
+        <div
+          className={`w-2.5 xl:w-4 h-0.5 transition-colors ${
+            isCompleted ? "bg-emerald-400" : isActive ? "bg-emerald-300" : "bg-slate-200"
+          }`}
+        />
+
+        {/* Directional Circle Badge */}
+        <div
+          className={`flex flex-col items-center justify-center group relative transition-all ${
+            isCompleted
+              ? "w-8 h-8 rounded-full bg-emerald-50 border-2 border-emerald-500 text-emerald-700 shadow-sm shadow-emerald-500/15"
+              : isActive
+              ? "w-8 h-8 rounded-full bg-white border-2 border-emerald-500 text-emerald-600 shadow-sm animate-pulse"
+              : "w-7 h-7 rounded-full bg-slate-50 border border-slate-300 text-slate-400"
+          }`}
+        >
+          <ArrowRight
+            size={isCompleted ? 14 : 12}
+            strokeWidth={2.5}
+            className={isCompleted ? "text-emerald-700" : isActive ? "text-emerald-600" : "text-slate-400"}
+          />
+
+          {/* Process step micro-tag tooltip/label */}
+          <span className="absolute -bottom-4.5 whitespace-nowrap text-[9px] font-mono font-bold uppercase tracking-wider text-slate-400">
+            {label}
+          </span>
+        </div>
+
+        {/* Right Track Line */}
+        <div
+          className={`w-2.5 xl:w-4 h-0.5 transition-colors ${
+            isCompleted ? "bg-emerald-400" : "bg-slate-200"
+          }`}
+        />
+      </div>
+
+      {/* Mobile Vertical Connector */}
+      <div className="flex lg:hidden flex-col items-center py-2">
+        <div
+          className={`w-0.5 h-3 ${
+            isCompleted ? "bg-emerald-400" : "bg-slate-200"
+          }`}
+        />
+        <div
+          className={`w-7 h-7 rounded-full flex items-center justify-center border ${
+            isCompleted
+              ? "bg-emerald-50 border-emerald-500 text-emerald-700 shadow-xs"
+              : "bg-slate-50 border-slate-300 text-slate-400"
+          }`}
+        >
+          <ArrowDown size={13} strokeWidth={2.5} />
+        </div>
+        <div
+          className={`w-0.5 h-3 ${
+            isCompleted ? "bg-emerald-400" : "bg-slate-200"
+          }`}
+        />
+      </div>
     </div>
   );
 }
 
 export function PipelineStages() {
-  const { result } = usePipeline();
+  const { result, status } = usePipeline();
   const [modalStage, setModalStage] = useState<{ title: string; content: React.ReactNode } | null>(
     null
   );
 
+  const isRunning = status === "running";
+  const isDone = result !== null;
+
   const STAGES_META = [
-    { num: "01", title: "Source Satellite", subtitle: "High-Res Optical Tile", icon: Layers },
-    { num: "02", title: "DeepLabV3+ Mask", subtitle: "Soft-Skeleton Segmentation", icon: Cpu },
-    { num: "03", title: "Raw Topology", subtitle: "Skeleton → Laplacian Graph", icon: Activity },
-    { num: "04", title: "Healed Topology", subtitle: "MST Angular Bridging", icon: Network },
-    { num: "05", title: "Critical Gatekeepers", subtitle: "Betweenness Bottlenecks", icon: TrendingUp },
+    {
+      num: "01",
+      stepName: "STAGE 01",
+      title: "Satellite Tile",
+      subtitle: "High-Res Optical Source",
+      accentColor: "bg-slate-700",
+      connectorLabel: "Segment",
+    },
+    {
+      num: "02",
+      stepName: "STAGE 02",
+      title: "DeepLabV3+ Mask",
+      subtitle: "Soft-Skeleton Loss",
+      accentColor: "bg-teal-600",
+      connectorLabel: "Vectorize",
+    },
+    {
+      num: "03",
+      stepName: "STAGE 03",
+      title: "Raw Road Graph",
+      subtitle: "Laplacian Junctions",
+      accentColor: "bg-sky-600",
+      connectorLabel: "MST Heal",
+    },
+    {
+      num: "04",
+      stepName: "STAGE 04",
+      title: "Healed Topology",
+      subtitle: "Angular Bridging",
+      accentColor: "bg-emerald-600",
+      connectorLabel: "Centrality",
+    },
+    {
+      num: "05",
+      stepName: "STAGE 05",
+      title: "Critical Gatekeepers",
+      subtitle: "Betweenness Bottlenecks",
+      accentColor: "bg-amber-500",
+      connectorLabel: "Done",
+    },
   ];
 
   if (!result) {
     return (
-      <div className="flex flex-col lg:flex-row items-stretch w-full gap-3">
+      <div className="flex flex-col lg:flex-row items-stretch w-full gap-2 lg:gap-0 pb-3">
         {STAGES_META.map((meta, i) => (
-          <div key={meta.title} className="flex items-stretch flex-1">
+          <div key={meta.title} className="flex flex-col lg:flex-row items-stretch flex-1">
             <StageCard
               number={meta.num}
+              stepName={meta.stepName}
               title={meta.title}
               subtitle={meta.subtitle}
-              icon={meta.icon}
+              accentColor={meta.accentColor}
               isCompleted={false}
             >
-              <EmptyStatePlaceholder label="Awaiting run" />
+              <EmptyStatePlaceholder label="Awaiting pipeline run" />
             </StageCard>
-            {i < STAGES_META.length - 1 && <StageConnector />}
+
+            {i < STAGES_META.length - 1 && (
+              <FlowConnector
+                label={meta.connectorLabel}
+                isCompleted={false}
+                isActive={isRunning && i === 0}
+              />
+            )}
           </div>
         ))}
       </div>
@@ -203,7 +326,7 @@ export function PipelineStages() {
     // 5. Critical Gatekeeper Centrality
     {
       ...STAGES_META[4],
-      metric: `Top: Node ${topNodeIds[0] ?? "—"}`,
+      metric: `Top: Junction #${topNodeIds[0] ?? "—"}`,
       content: (
         <GraphView
           graph={result.healed_graph}
@@ -222,23 +345,31 @@ export function PipelineStages() {
 
   return (
     <>
-      <div className="flex flex-col lg:flex-row items-stretch w-full gap-3">
+      <div className="flex flex-col lg:flex-row items-stretch w-full gap-2 lg:gap-0 pb-3">
         {stageContents.map((stage, i) => (
-          <div key={stage.title} className="flex items-stretch flex-1">
+          <div key={stage.title} className="flex flex-col lg:flex-row items-stretch flex-1">
             <StageCard
               number={stage.num}
+              stepName={stage.stepName}
               title={stage.title}
               subtitle={stage.subtitle}
               metric={stage.metric}
-              icon={stage.icon}
+              accentColor={stage.accentColor}
               isCompleted={true}
               onExpand={() =>
-                setModalStage({ title: `${stage.num}. ${stage.title}`, content: stage.content })
+                setModalStage({ title: `${stage.stepName}: ${stage.title}`, content: stage.content })
               }
             >
               {stage.content}
             </StageCard>
-            {i < stageContents.length - 1 && <StageConnector />}
+
+            {i < stageContents.length - 1 && (
+              <FlowConnector
+                label={stage.connectorLabel}
+                isCompleted={isDone}
+                isActive={false}
+              />
+            )}
           </div>
         ))}
       </div>
